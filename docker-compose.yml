@@ -1,0 +1,9 @@
+# Copyright (c) Adfinis
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+services:
+  bastion:
+    image: ovhcom/the-bastion:sandbox
+    ports:
+      - "2222:22"

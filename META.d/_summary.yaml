@@ -1,10 +1,10 @@
 ---
 schema: 1.1
 
-partition: tf-ecosystem
+partition: community
 
 summary:
-  owner: team-tf-core-plugins
+  owner: adfinis
   description: |
-    Quick start repository for creating a Terraform provider using terraform-plugin-framework
+    A Terraform provider for managing The Bastion resources.
   visibility: public
