@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/adfinis/terraform-provider-bastion/bastion"
 	"github.com/adfinis/terraform-provider-bastion/internal/provider/utils"
@@ -38,9 +39,9 @@ type GroupResourceModel struct {
 	Owner           types.String `tfsdk:"owner"`
 	KeyAlgo         types.String `tfsdk:"key_algo"`
 	MFARequired     types.String `tfsdk:"mfa_required"`
-	IdleLockTimeout types.String `tfsdk:"idle_lock_timeout"`
-	IdleKillTimeout types.String `tfsdk:"idle_kill_timeout"`
-	GuestTtlLimit   types.String `tfsdk:"guest_ttl_limit"`
+	IdleLockTimeout types.Int64  `tfsdk:"idle_lock_timeout"`
+	IdleKillTimeout types.Int64  `tfsdk:"idle_kill_timeout"`
+	GuestTtlLimit   types.Int64  `tfsdk:"guest_ttl_limit"`
 	Owners          types.List   `tfsdk:"owners"`
 	Members         types.List   `tfsdk:"members"`
 	Gatekeepers     types.List   `tfsdk:"gatekeepers"`
@@ -85,16 +86,16 @@ func (r *GroupResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "MFA policy for the group. Valid values: password, totp, any, none. If not specified, the group's current setting is preserved.",
 				Optional:            true,
 			},
-			"idle_lock_timeout": schema.StringAttribute{
-				MarkdownDescription: "Idle lock timeout in seconds or duration. After this duration of inactivity, the session will be locked.",
+			"idle_lock_timeout": schema.Int64Attribute{
+				MarkdownDescription: "Idle lock timeout in seconds. After this duration of inactivity, the session will be locked.",
 				Optional:            true,
 			},
-			"idle_kill_timeout": schema.StringAttribute{
-				MarkdownDescription: "Idle kill timeout in seconds or duration. After this duration of inactivity, the session will be terminated.",
+			"idle_kill_timeout": schema.Int64Attribute{
+				MarkdownDescription: "Idle kill timeout in seconds. After this duration of inactivity, the session will be terminated.",
 				Optional:            true,
 			},
-			"guest_ttl_limit": schema.StringAttribute{
-				MarkdownDescription: "Maximum TTL (time to live) for guest accesses in seconds or duration.",
+			"guest_ttl_limit": schema.Int64Attribute{
+				MarkdownDescription: "Maximum TTL (time to live) for guest accesses in seconds.",
 				Optional:            true,
 			},
 			"owners": schema.ListAttribute{
@@ -254,15 +255,39 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	if group.IdleLockTimeout != nil {
-		state.IdleLockTimeout = types.StringValue(*group.IdleLockTimeout)
+		idleLockTimeout, err := strconv.ParseInt(*group.IdleLockTimeout, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Parsing Idle Lock Timeout",
+				fmt.Sprintf("Could not parse idle lock timeout for group %s: %s", state.Group.ValueString(), err.Error()),
+			)
+			return
+		}
+		state.IdleLockTimeout = types.Int64Value(idleLockTimeout)
 	}
 
 	if group.IdleKillTimeout != nil {
-		state.IdleKillTimeout = types.StringValue(*group.IdleKillTimeout)
+		idleKillTimeout, err := strconv.ParseInt(*group.IdleKillTimeout, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Parsing Idle Kill Timeout",
+				fmt.Sprintf("Could not parse idle kill timeout for group %s: %s", state.Group.ValueString(), err.Error()),
+			)
+			return
+		}
+		state.IdleKillTimeout = types.Int64Value(idleKillTimeout)
 	}
 
 	if group.GuestTtlLimit != nil {
-		state.GuestTtlLimit = types.StringValue(*group.GuestTtlLimit)
+		guestTtlLimit, err := strconv.ParseInt(*group.GuestTtlLimit, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Parsing Guest TTL Limit",
+				fmt.Sprintf("Could not parse guest TTL limit for group %s: %s", state.Group.ValueString(), err.Error()),
+			)
+			return
+		}
+		state.GuestTtlLimit = types.Int64Value(guestTtlLimit)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -296,15 +321,15 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		}
 
 		if !plan.IdleLockTimeout.IsNull() {
-			modifyOpts.IdleLockTimeout = utils.ToPtr(plan.IdleLockTimeout.ValueString())
+			modifyOpts.IdleLockTimeout = utils.ToPtr(fmt.Sprintf("%d", plan.IdleLockTimeout.ValueInt64()))
 		}
 
 		if !plan.IdleKillTimeout.IsNull() {
-			modifyOpts.IdleKillTimeout = utils.ToPtr(plan.IdleKillTimeout.ValueString())
+			modifyOpts.IdleKillTimeout = utils.ToPtr(fmt.Sprintf("%d", plan.IdleKillTimeout.ValueInt64()))
 		}
 
 		if !plan.GuestTtlLimit.IsNull() {
-			modifyOpts.GuestTtlLimit = utils.ToPtr(plan.GuestTtlLimit.ValueString())
+			modifyOpts.GuestTtlLimit = utils.ToPtr(fmt.Sprintf("%d", plan.GuestTtlLimit.ValueInt64()))
 		}
 
 		err := r.client.ModifyGroup(plan.Group.ValueString(), modifyOpts)
