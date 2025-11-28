@@ -6,7 +6,10 @@ package bastion
 import (
 	"errors"
 	"fmt"
+	"path"
 
+	"github.com/adrg/xdg"
+	"github.com/skeema/knownhosts"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -50,10 +53,15 @@ func New(cfg *Config, authMethods ...SSHAuthMethod) (*Client, error) {
 		methods = append(methods, method)
 	}
 
+	khCallback, err := getHostKeyCallback(cfg.StrictHostKeyChecking)
+	if err != nil {
+		return nil, err
+	}
+
 	sshCfg := &ssh.ClientConfig{
 		User:            cfg.Username,
 		Auth:            methods,
-		HostKeyCallback: getHostKeyCallback(cfg.StrictHostKeyChecking),
+		HostKeyCallback: khCallback,
 	}
 
 	return &Client{
@@ -84,11 +92,20 @@ func validateConfig(cfg *Config) error {
 }
 
 // getHostKeyCallback returns appropriate host key callback.
-func getHostKeyCallback(strictHostKeyChecking bool) ssh.HostKeyCallback {
+func getHostKeyCallback(strictHostKeyChecking bool) (ssh.HostKeyCallback, error) {
 	if strictHostKeyChecking {
-		return nil
+		return getKnownHostsCallback()
 	}
-	return ssh.InsecureIgnoreHostKey()
+	return ssh.InsecureIgnoreHostKey(), nil
+}
+
+// getKnownHostsCallback returns a HostKeyCallback that verifies the server's host key against a known_hosts file.
+func getKnownHostsCallback() (ssh.HostKeyCallback, error) {
+	kh, err := knownhosts.NewDB(path.Join(xdg.Home, ".ssh", "known_hosts"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create known hosts callback: %w", err)
+	}
+	return kh.HostKeyCallback(), nil
 }
 
 // sshClient returns a new ssh.Client based on the provided configuration.
