@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/adfinis/terraform-provider-bastion/internal/provider/testutils"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -45,8 +46,8 @@ func TestAccGroupResource(t *testing.T) {
 				ImportStateId:                        "testgrp1",
 				ImportState:                          true,
 				ImportStateVerify:                    true,
-				// owner and key_algo are only used during creation
-				ImportStateVerifyIgnore: []string{"owner", "key_algo"},
+				// key_algo is only used during creation
+				ImportStateVerifyIgnore: []string{"key_algo"},
 			},
 		},
 	})
@@ -219,8 +220,8 @@ func TestAccGroupResource_WithModifyOptions(t *testing.T) {
 				ImportStateVerifyIdentifierAttribute: "group",
 				ImportState:                          true,
 				ImportStateVerify:                    true,
-				// owner and key_algo are only used during creation
-				ImportStateVerifyIgnore: []string{"owner", "key_algo"},
+				// key_algo is only used during creation
+				ImportStateVerifyIgnore: []string{"key_algo"},
 			},
 		},
 	})
@@ -425,6 +426,65 @@ func TestAccGroupResource_IdleLockTimeout(t *testing.T) {
 						"bastion_group.test",
 						tfjsonpath.New("group"),
 						knownvalue.StringExact("testgrp9"),
+					),
+				},
+			},
+		},
+	})
+}
+
+func TestAccGroupResource_OwnershipTransfer(t *testing.T) {
+	err := testutils.CreateAccount("testuser1")
+	if err != nil {
+		t.Errorf("Unable to create test account: %s", err)
+	}
+
+	t.Cleanup(func() {
+		err := testutils.DeleteAccount("testuser1")
+		if err != nil {
+			t.Errorf("Unable to delete test account: %s", err)
+		}
+	})
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create group with initial owner
+			{
+				Config: testAccGroupResourceConfig("testgrp10", "bastionadmin", ""),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(
+						"bastion_group.test",
+						tfjsonpath.New("group"),
+						knownvalue.StringExact("testgrp10"),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group.test",
+						tfjsonpath.New("owner"),
+						knownvalue.StringExact("bastionadmin"),
+					),
+				},
+			},
+			// Transfer ownership to testuser1
+			{
+				Config: testAccGroupResourceConfig("testgrp10", "testuser1", ""),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(
+						"bastion_group.test",
+						tfjsonpath.New("owner"),
+						knownvalue.StringExact("testuser1"),
+					),
+				},
+			},
+			// Transfer ownership back to bastionadmin
+			{
+				Config: testAccGroupResourceConfig("testgrp10", "bastionadmin", ""),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(
+						"bastion_group.test",
+						tfjsonpath.New("owner"),
+						knownvalue.StringExact("bastionadmin"),
 					),
 				},
 			},

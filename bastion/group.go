@@ -162,3 +162,10 @@ func (c *Client) GroupRemoveMember(group, account string) error {
 	_, err := c.executeCommand("groupDelMember", "--group", group, "--account", account)
 	return err
 }
+
+// GroupTransmitOwnership transmits ownership of a Bastion group to another account.
+// This method must be called by an explicit owner of the group.
+func (c *Client) GroupTransmitOwnership(group, account string) error {
+	_, err := c.executeCommand("groupTransmitOwnership", "--group", group, "--account", account)
+	return err
+}
