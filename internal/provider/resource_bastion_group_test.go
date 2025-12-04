@@ -157,7 +157,7 @@ func TestAccGroupResource_WithModifyOptions(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create with modify options
 			{
-				Config: testAccGroupResourceConfigWithModifyOptions("testgrp6", "bastionadmin", "", "totp", "900", "1800", "86400"),
+				Config: testAccGroupResourceConfigWithModifyOptions("testgrp6", "bastionadmin", "", "totp", 900, 1800, 86400),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
@@ -172,23 +172,23 @@ func TestAccGroupResource_WithModifyOptions(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("idle_lock_timeout"),
-						knownvalue.StringExact("900"),
+						knownvalue.Int64Exact(900),
 					),
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("idle_kill_timeout"),
-						knownvalue.StringExact("1800"),
+						knownvalue.Int64Exact(1800),
 					),
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("guest_ttl_limit"),
-						knownvalue.StringExact("86400"),
+						knownvalue.Int64Exact(86400),
 					),
 				},
 			},
 			// Update modify options
 			{
-				Config: testAccGroupResourceConfigWithModifyOptions("testgrp6", "bastionadmin", "", "any", "1200", "2400", "43200"),
+				Config: testAccGroupResourceConfigWithModifyOptions("testgrp6", "bastionadmin", "", "any", 1200, 2400, 43200),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
@@ -198,17 +198,17 @@ func TestAccGroupResource_WithModifyOptions(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("idle_lock_timeout"),
-						knownvalue.StringExact("1200"),
+						knownvalue.Int64Exact(1200),
 					),
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("idle_kill_timeout"),
-						knownvalue.StringExact("2400"),
+						knownvalue.Int64Exact(2400),
 					),
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("guest_ttl_limit"),
-						knownvalue.StringExact("43200"),
+						knownvalue.Int64Exact(43200),
 					),
 				},
 			},
@@ -259,8 +259,8 @@ func TestAccGroupResource_PartialModifyOptions(t *testing.T) {
 			{
 				Config: testAccGroupResourceConfigWithPartialOptions("testgrp7", "bastionadmin", "", map[string]any{
 					"mfa_required":      "password",
-					"idle_lock_timeout": "600",
-					"idle_kill_timeout": "1200",
+					"idle_lock_timeout": 600,
+					"idle_kill_timeout": 1201,
 				}),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
@@ -271,12 +271,12 @@ func TestAccGroupResource_PartialModifyOptions(t *testing.T) {
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("idle_lock_timeout"),
-						knownvalue.StringExact("600"),
+						knownvalue.Int64Exact(600),
 					),
 					statecheck.ExpectKnownValue(
 						"bastion_group.test",
 						tfjsonpath.New("idle_kill_timeout"),
-						knownvalue.StringExact("1200"),
+						knownvalue.Int64Exact(1201),
 					),
 				},
 			},
@@ -367,7 +367,7 @@ resource "bastion_group" "test" {
 }
 
 // testAccGroupResourceConfigWithModifyOptions generates config with all modify options.
-func testAccGroupResourceConfigWithModifyOptions(groupName, owner, keyAlgo, mfaRequired, idleLockTimeout, idleKillTimeout, guestTtlLimit string) string {
+func testAccGroupResourceConfigWithModifyOptions(groupName, owner, keyAlgo, mfaRequired string, idleLockTimeout, idleKillTimeout, guestTtlLimit int) string {
 	config := providerConfig()
 
 	keyAlgoStr := ""
@@ -380,9 +380,9 @@ resource "bastion_group" "test" {
   group             = %[1]q
   owner             = %[2]q
 %[3]s mfa_required      = %[4]q
-  idle_lock_timeout = %[5]q
-  idle_kill_timeout = %[6]q
-  guest_ttl_limit   = %[7]q
+  idle_lock_timeout = %[5]d
+  idle_kill_timeout = %[6]d
+  guest_ttl_limit   = %[7]d
 }
 `, groupName, owner, keyAlgoStr, mfaRequired, idleLockTimeout, idleKillTimeout, guestTtlLimit)
 
@@ -407,16 +407,16 @@ resource "bastion_group" "test" {
 		resourceConfig += fmt.Sprintf("  mfa_required = %q\n", mfaRequired)
 	}
 
-	if idleLockTimeout, ok := options["idle_lock_timeout"].(string); ok {
-		resourceConfig += fmt.Sprintf("  idle_lock_timeout = %q\n", idleLockTimeout)
+	if idleLockTimeout, ok := options["idle_lock_timeout"].(int); ok {
+		resourceConfig += fmt.Sprintf("  idle_lock_timeout = %d\n", idleLockTimeout)
 	}
 
-	if idleKillTimeout, ok := options["idle_kill_timeout"].(string); ok {
-		resourceConfig += fmt.Sprintf("  idle_kill_timeout = %q\n", idleKillTimeout)
+	if idleKillTimeout, ok := options["idle_kill_timeout"].(int); ok {
+		resourceConfig += fmt.Sprintf("  idle_kill_timeout = %d\n", idleKillTimeout)
 	}
 
-	if guestTtlLimit, ok := options["guest_ttl_limit"].(string); ok {
-		resourceConfig += fmt.Sprintf("  guest_ttl_limit = %q\n", guestTtlLimit)
+	if guestTtlLimit, ok := options["guest_ttl_limit"].(int); ok {
+		resourceConfig += fmt.Sprintf("  guest_ttl_limit = %d\n", guestTtlLimit)
 	}
 
 	resourceConfig += "}\n"
