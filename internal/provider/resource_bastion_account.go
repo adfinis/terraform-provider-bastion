@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -146,11 +147,13 @@ func (r *AccountResource) Schema(ctx context.Context, req resource.SchemaRequest
 				MarkdownDescription: "MFA password policy. Valid values: yes, no, bypass.",
 				Optional:            true,
 				Computed:            true,
+				Default:             stringdefault.StaticString("no"),
 			},
 			"mfa_totp_required": schema.StringAttribute{
 				MarkdownDescription: "MFA TOTP policy. Valid values: yes, no, bypass.",
 				Optional:            true,
 				Computed:            true,
+				Default:             stringdefault.StaticString("no"),
 			},
 			"egress_strict_host_key_checking": schema.StringAttribute{
 				MarkdownDescription: "Egress strict host key checking policy. Valid values: yes, accept-new, no, ask, default, bypass.",
@@ -164,6 +167,7 @@ func (r *AccountResource) Schema(ctx context.Context, req resource.SchemaRequest
 				MarkdownDescription: "Personal egress MFA policy. Valid values: password, totp, any, none.",
 				Optional:            true,
 				Computed:            true,
+				Default:             stringdefault.StaticString("none"),
 			},
 			"idle_ignore": schema.BoolAttribute{
 				MarkdownDescription: "Whether to ignore idle timeouts for this account.",
