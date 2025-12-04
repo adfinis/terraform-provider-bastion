@@ -1,100 +1,227 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) Adfinis
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
-	"github.com/hashicorp/terraform-plugin-framework/function"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/adfinis/terraform-provider-bastion/bastion"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
-var _ provider.ProviderWithEphemeralResources = &ScaffoldingProvider{}
+// Ensure BastionProvider satisfies various provider interfaces.
+var _ provider.Provider = &BastionProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// BastionProvider defines the provider implementation.
+type BastionProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// BastionProviderModel describes the provider data model.
+type BastionProviderModel struct {
+	Host                  types.String `tfsdk:"host"`
+	Port                  types.Int64  `tfsdk:"port"`
+	Username              types.String `tfsdk:"username"`
+	PrivateKey            types.String `tfsdk:"private_key"`
+	PrivateKeyFile        types.String `tfsdk:"private_key_file"`
+	UseAgent              types.Bool   `tfsdk:"use_agent"`
+	Timeout               types.Int64  `tfsdk:"timeout"`
+	StrictHostKeyChecking types.Bool   `tfsdk:"strict_host_key_checking"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *BastionProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "bastion"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *BastionProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"host": schema.StringAttribute{
+				MarkdownDescription: "The Bastion host to connect to",
+				Required:            true,
+			},
+			"port": schema.Int64Attribute{
+				MarkdownDescription: "The SSH port to connect to (default: 22)",
+				Optional:            true,
+			},
+			"username": schema.StringAttribute{
+				MarkdownDescription: "SSH username for The Bastion",
+				Required:            true,
+			},
+			"private_key": schema.StringAttribute{
+				MarkdownDescription: "SSH private key content",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"private_key_file": schema.StringAttribute{
+				MarkdownDescription: "Path to SSH private key file",
+				Optional:            true,
+			},
+			"use_agent": schema.BoolAttribute{
+				MarkdownDescription: "Use SSH agent for authentication (default: false)",
+				Optional:            true,
+			},
+			"timeout": schema.Int64Attribute{
+				MarkdownDescription: "SSH connection timeout in seconds (default: 30)",
+				Optional:            true,
+			},
+			"strict_host_key_checking": schema.BoolAttribute{
+				MarkdownDescription: "Enable strict host key checking (default: true)",
 				Optional:            true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
-
+func (p *BastionProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data BastionProviderModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if data.Port.IsNull() {
+		data.Port = types.Int64Value(22)
+	}
+
+	if data.Timeout.IsNull() {
+		data.Timeout = types.Int64Value(30)
+	}
+
+	if data.StrictHostKeyChecking.IsNull() {
+		data.StrictHostKeyChecking = types.BoolValue(true)
+	}
+
+	// Environment variable support
+	if data.Host.IsNull() {
+		host := os.Getenv("BASTION_HOST")
+		if host != "" {
+			data.Host = types.StringValue(host)
+		}
+	}
+
+	if data.Username.IsNull() {
+		username := os.Getenv("BASTION_USERNAME")
+		if username != "" {
+			data.Username = types.StringValue(username)
+		}
+	}
+
+	if data.PrivateKeyFile.IsNull() {
+		keyFile := os.Getenv("BASTION_PRIVATE_KEY_FILE")
+		if keyFile != "" {
+			data.PrivateKeyFile = types.StringValue(keyFile)
+		}
+	}
+
+	// Validation
+	if data.Host.IsNull() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("host"),
+			"Missing Bastion Host",
+			"The provider cannot create the Bastion client as there is a missing or empty value for the Bastion host. "+
+				"Set the host value in the configuration or use the BASTION_HOST environment variable.",
+		)
+	}
+
+	if data.Username.IsNull() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("username"),
+			"Missing Bastion Username",
+			"The provider cannot create the Bastion client as there is a missing or empty value for the Bastion username. "+
+				"Set the username value in the configuration or use the BASTION_USERNAME environment variable.",
+		)
+	}
+
+	config := &bastion.Config{
+		Host:                  data.Host.ValueString(),
+		Port:                  int(data.Port.ValueInt64()),
+		Username:              data.Username.ValueString(),
+		Timeout:               int(data.Timeout.ValueInt64()),
+		StrictHostKeyChecking: data.StrictHostKeyChecking.ValueBool(),
+	}
+
+	authMethods := make([]bastion.SSHAuthMethod, 0)
+	if !data.PrivateKey.IsNull() {
+		authMethods = append(
+			authMethods,
+			bastion.WithPrivateKeyAuth(data.PrivateKey.ValueString()),
+		)
+	}
+
+	if !data.PrivateKeyFile.IsNull() {
+		authMethods = append(
+			authMethods,
+			bastion.WithPrivateKeyFileAuth(data.PrivateKeyFile.ValueString()),
+		)
+	}
+
+	if data.UseAgent.ValueBool() {
+		authMethods = append(
+			authMethods,
+			bastion.WithSSHAgentAuth(),
+		)
+	}
+
+	if len(authMethods) == 0 {
+		resp.Diagnostics.AddError(
+			"Missing Bastion Authentication Method",
+			"The provider cannot create the Bastion client as there is no SSH authentication method configured. "+
+				"Set at least one of private_key, private_key_file, password, or enable use_agent.",
+		)
+	}
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	client, err := bastion.New(config, authMethods...)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Create Bastion Client",
+			"An unexpected error occurred when creating the Bastion client: "+err.Error(),
+		)
+		return
+	}
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
 	resp.DataSourceData = client
 	resp.ResourceData = client
+
+	tflog.Info(ctx, "Configured Bastion client", map[string]any{"success": true})
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *BastionProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		NewGroupResource,
+		NewGroupOwnerResource,
+		NewGroupGatekeeperResource,
+		NewGroupACLKeeperResource,
+		NewGroupMemberResource,
 	}
 }
 
-func (p *ScaffoldingProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
-	return []func() ephemeral.EphemeralResource{
-		NewExampleEphemeralResource,
-	}
-}
-
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *BastionProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
-}
-
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
+		NewGroupDataSource,
 	}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &BastionProvider{
 			version: version,
 		}
 	}

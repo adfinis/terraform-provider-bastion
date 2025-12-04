@@ -18,7 +18,21 @@ fmt:
 test:
 	go test -v -cover -timeout=120s -parallel=10 ./...
 
+testacc-up: | ssh-keys
+	docker compose up -d
+	./scripts/create-bastion-account.sh
+
+testacc-down:
+	docker compose down --volumes
+
 testacc:
 	TF_ACC=1 go test -v -cover -timeout 120m ./...
+
+ssh-keys:
+	mkdir -p ssh-keys
+	ssh-keygen -t ed25519 -f ssh-keys/id_ed25519 -N "" -C "bastion-test-key"
+
+clean: testacc-down
+	@rm -rf ssh-keys/
 
 .PHONY: fmt lint test testacc build install generate
