@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/adfinis/terraform-provider-bastion/bastion"
@@ -67,11 +68,8 @@ func (r *GroupResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				},
 			},
 			"owner": schema.StringAttribute{
-				MarkdownDescription: "The initial owner of the Bastion group (only used during creation)",
+				MarkdownDescription: "The owner of the Bastion group. Changing this will transfer ownership to the new account.",
 				Required:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"key_algo": schema.StringAttribute{
 				MarkdownDescription: "The SSH key algorithm for the group's initial key. Valid values: ed25519, rsa2048, rsa4096, rsa8192, ecdsa256, ecdsa384, ecdsa521. Defaults to ed25519. This value is only used during creation and cannot be changed afterward.",
@@ -103,9 +101,6 @@ func (r *GroupResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				ElementType:         types.StringType,
 				MarkdownDescription: "The owners of the Bastion group",
 				Computed:            true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"members": schema.ListAttribute{
 				ElementType:         types.StringType,
@@ -229,6 +224,15 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	plan.Group = types.StringValue(group.Group)
 
+	// Verify that the configured owner is in the owners list
+	if !slices.Contains(group.Owners, plan.Owner.ValueString()) {
+		resp.Diagnostics.AddError(
+			"Owner Not Found in Owners List",
+			fmt.Sprintf("The configured owner %s is not in the group's owners list after creation", plan.Owner.ValueString()),
+		)
+		return
+	}
+
 	owners, diags := types.ListValueFrom(ctx, types.StringType, group.Owners)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -320,6 +324,12 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 
 	state.Group = types.StringValue(group.Group)
 
+	// Verify that the configured owner is still in the owners list
+	// If not found or no owner configured, use the first owner from the list
+	if !slices.Contains(group.Owners, state.Owner.ValueString()) && len(group.Owners) > 0 {
+		state.Owner = types.StringValue(group.Owners[0])
+	}
+
 	owners, diags := types.ListValueFrom(ctx, types.StringType, group.Owners)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -405,6 +415,28 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	if !plan.Owner.Equal(state.Owner) {
+		// Add the new owner
+		err := r.client.GroupAddOwner(plan.Group.ValueString(), plan.Owner.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Adding New Group Owner",
+				fmt.Sprintf("Could not add %s as owner of group %s: %s", plan.Owner.ValueString(), plan.Group.ValueString(), err.Error()),
+			)
+			return
+		}
+
+		// Remove the old owner
+		err = r.client.GroupRemoveOwner(plan.Group.ValueString(), state.Owner.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Removing Old Group Owner",
+				fmt.Sprintf("Could not remove %s as owner of group %s: %s", state.Owner.ValueString(), plan.Group.ValueString(), err.Error()),
+			)
+			return
+		}
+	}
+
 	// Check if any modifiable attributes have changed
 	if !plan.MFARequired.Equal(state.MFARequired) ||
 		!plan.IdleLockTimeout.Equal(state.IdleLockTimeout) ||
@@ -471,6 +503,15 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	plan.Group = types.StringValue(group.Group)
+
+	// Verify that the configured owner is in the owners list
+	if !slices.Contains(group.Owners, plan.Owner.ValueString()) {
+		resp.Diagnostics.AddError(
+			"Owner Not Found in Owners List",
+			fmt.Sprintf("The configured owner %s is not in the group's owners list after update", plan.Owner.ValueString()),
+		)
+		return
+	}
 
 	owners, diags := types.ListValueFrom(ctx, types.StringType, group.Owners)
 	resp.Diagnostics.Append(diags...)

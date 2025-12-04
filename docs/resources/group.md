@@ -30,7 +30,7 @@ resource "bastion_group" "example" {
 ### Required
 
 - `group` (String) The name of the Bastion group
-- `owner` (String) The initial owner of the Bastion group (only used during creation)
+- `owner` (String) The owner of the Bastion group. Changing this will transfer ownership to the new account.
 
 ### Optional
 
