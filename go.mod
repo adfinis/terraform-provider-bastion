@@ -3,10 +3,12 @@ module github.com/adfinis/terraform-provider-bastion
 go 1.24.0
 
 require (
+	github.com/adrg/xdg v0.5.3
 	github.com/hashicorp/terraform-plugin-framework v1.16.1
 	github.com/hashicorp/terraform-plugin-go v0.29.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/hashicorp/terraform-plugin-testing v1.13.3
+	github.com/skeema/knownhosts v1.3.1
 	golang.org/x/crypto v0.45.0
 )
 
