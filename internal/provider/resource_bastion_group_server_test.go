@@ -546,6 +546,31 @@ func TestParseImportID(t *testing.T) {
 			input:    "mygroup:[2001:db8::1]:22::scpdownload:[fd00::1]:22:proxy_user",
 			expected: []string{"mygroup", "2001:db8::1", "22", "", "scpdownload", "fd00::1", "22", "proxy_user"},
 		},
+		{
+			name:     "portforward without proxy",
+			input:    "mygroup:192.168.1.100:22::portforward:8080",
+			expected: []string{"mygroup", "192.168.1.100", "22", "", "portforward", "8080"},
+		},
+		{
+			name:     "portforward with proxy",
+			input:    "mygroup:192.168.1.100:22::portforward:3306:10.0.0.1:22:proxy_user",
+			expected: []string{"mygroup", "192.168.1.100", "22", "", "portforward", "3306", "10.0.0.1", "22", "proxy_user"},
+		},
+		{
+			name:     "IPv6 portforward without proxy",
+			input:    "mygroup:[2001:db8::100]:22::portforward:8080",
+			expected: []string{"mygroup", "2001:db8::100", "22", "", "portforward", "8080"},
+		},
+		{
+			name:     "IPv6 portforward with IPv6 proxy",
+			input:    "mygroup:[2001:db8::200]:22::portforward:5432:[fd00::1]:22:proxy_user",
+			expected: []string{"mygroup", "2001:db8::200", "22", "", "portforward", "5432", "fd00::1", "22", "proxy_user"},
+		},
+		{
+			name:     "IPv6 portforward with IPv4 proxy",
+			input:    "mygroup:[2001:db8::100]:22::portforward:8080:192.168.1.1:22:proxy_user",
+			expected: []string{"mygroup", "2001:db8::100", "22", "", "portforward", "8080", "192.168.1.1", "22", "proxy_user"},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1218,6 +1243,129 @@ func TestAccGroupServerResource_PortForwardMultiplePorts(t *testing.T) {
 					resource.TestCheckResourceAttr("bastion_group_server.pf5432", "protocol", "portforward"),
 					resource.TestCheckResourceAttr("bastion_group_server.pf5432", "remote_port", "5432"),
 				),
+			},
+		},
+	})
+}
+
+func TestAccGroupServerResource_PortForwardIPv6(t *testing.T) {
+	err := testutils.CreateGroup("testgrpsrvpfipv6", "bastionadmin", bastion.ED25519)
+	if err != nil {
+		t.Errorf("Unable to create test group: %s", err)
+	}
+
+	t.Cleanup(func() {
+		err := testutils.DeleteGroup("testgrpsrvpfipv6")
+		if err != nil {
+			t.Errorf("Unable to delete test group: %s", err)
+		}
+	})
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// First create base access
+			{
+				Config: testAccGroupServerResourceConfig("testgrpsrvpfipv6", "2001:db8::100", "22", "pfuser", "", "", "", ""),
+			},
+			// Then add portforward access with IPv6
+			{
+				Config: testAccGroupServerResourceConfigWithPortForward("testgrpsrvpfipv6", "2001:db8::100", "22", 8080),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("ip"),
+						knownvalue.StringExact("2001:db8::100"),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("protocol"),
+						knownvalue.StringExact("portforward"),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("remote_port"),
+						knownvalue.Int64Exact(8080),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("id"),
+						knownvalue.StringExact("testgrpsrvpfipv6:[2001:db8::100]:22::portforward:8080"),
+					),
+				},
+			},
+			// ImportState testing with portforward and IPv6
+			{
+				ResourceName:            "bastion_group_server.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateId:           "testgrpsrvpfipv6:[2001:db8::100]:22::portforward:8080",
+				ImportStateVerifyIgnore: []string{"force"},
+			},
+		},
+	})
+}
+
+func TestAccGroupServerResource_PortForwardIPv6WithProxy(t *testing.T) {
+	err := testutils.CreateGroup("testgrpsrvpfipv6pr", "bastionadmin", bastion.ED25519)
+	if err != nil {
+		t.Errorf("Unable to create test group: %s", err)
+	}
+
+	t.Cleanup(func() {
+		err := testutils.DeleteGroup("testgrpsrvpfipv6pr")
+		if err != nil {
+			t.Errorf("Unable to delete test group: %s", err)
+		}
+	})
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// First create base access with IPv6 and IPv6 proxy
+			{
+				Config: testAccGroupServerResourceConfig("testgrpsrvpfipv6pr", "2001:db8::200", "22", "admin", "", "fd00::1", "22", "proxy_user"),
+			},
+			// Then add portforward access with IPv6 and proxy
+			{
+				Config: testAccGroupServerResourceConfigWithPortForwardAndProxy("testgrpsrvpfipv6pr", "2001:db8::200", "22", 5432, "fd00::1", "22", "proxy_user"),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("ip"),
+						knownvalue.StringExact("2001:db8::200"),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("protocol"),
+						knownvalue.StringExact("portforward"),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("remote_port"),
+						knownvalue.Int64Exact(5432),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("proxy_ip"),
+						knownvalue.StringExact("fd00::1"),
+					),
+					statecheck.ExpectKnownValue(
+						"bastion_group_server.test",
+						tfjsonpath.New("id"),
+						knownvalue.StringExact("testgrpsrvpfipv6pr:[2001:db8::200]:22::portforward:5432:[fd00::1]:22:proxy_user"),
+					),
+				},
+			},
+			// ImportState testing with portforward, IPv6, and proxy
+			{
+				ResourceName:            "bastion_group_server.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateId:           "testgrpsrvpfipv6pr:[2001:db8::200]:22::portforward:5432:[fd00::1]:22:proxy_user",
+				ImportStateVerifyIgnore: []string{"force"},
 			},
 		},
 	})

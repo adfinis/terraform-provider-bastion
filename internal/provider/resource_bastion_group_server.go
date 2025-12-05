@@ -467,7 +467,7 @@ func (r *GroupServerResource) ImportState(ctx context.Context, req resource.Impo
 	importID := req.ID
 	parts := parseImportID(importID)
 
-	if len(parts) < 4 || len(parts) == 7 || len(parts) > 9 {
+	if len(parts) < 4 || len(parts) > 9 {
 		resp.Diagnostics.AddError(
 			"Invalid Import ID",
 			fmt.Sprintf("Expected import ID in the format 'group:ip:port:user', 'group:ip:port:user:protocol', 'group:ip:port:user:protocol:remote_port', 'group:ip:port:user:proxy_ip:proxy_port:proxy_user', 'group:ip:port:user:protocol:proxy_ip:proxy_port:proxy_user', or 'group:ip:port:user:protocol:remote_port:proxy_ip:proxy_port:proxy_user', got: %s", importID),
@@ -503,24 +503,17 @@ func (r *GroupServerResource) ImportState(ctx context.Context, req resource.Impo
 			return
 		}
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("remote_port"), remotePort)...)
+	} else if len(parts) == 7 {
+		// group:ip:port:user:proxy_ip:proxy_port:proxy_user
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_ip"), parts[4])...)
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_port"), parts[5])...)
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_user"), parts[6])...)
 	} else if len(parts) == 8 {
-		// Could be:
-		// - group:ip:port:user:proxy_ip:proxy_port:proxy_user (indices 4,5,6)
-		// - group:ip:port:user:protocol:proxy_ip:proxy_port:proxy_user (indices 4,5,6,7)
-		// Check if part[4] is a valid protocol
-		protocol := parts[4]
-		if protocol == "sftp" || protocol == "scpupload" || protocol == "scpdownload" || protocol == "rsync" || protocol == "portforward" {
-			// group:ip:port:user:protocol:proxy_ip:proxy_port:proxy_user
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("protocol"), protocol)...)
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_ip"), parts[5])...)
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_port"), parts[6])...)
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_user"), parts[7])...)
-		} else {
-			// group:ip:port:user:proxy_ip:proxy_port:proxy_user
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_ip"), parts[4])...)
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_port"), parts[5])...)
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_user"), parts[6])...)
-		}
+		// group:ip:port:user:protocol:proxy_ip:proxy_port:proxy_user
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("protocol"), parts[4])...)
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_ip"), parts[5])...)
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_port"), parts[6])...)
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("proxy_user"), parts[7])...)
 	} else if len(parts) == 9 {
 		// group:ip:port:user:protocol:remote_port:proxy_ip:proxy_port:proxy_user
 		protocol := parts[4]
