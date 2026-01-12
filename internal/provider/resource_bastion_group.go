@@ -70,6 +70,9 @@ func (r *GroupResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtMost(18),
+				},
 			},
 			"owner": schema.StringAttribute{
 				MarkdownDescription: "The owner of the Bastion group. Changing this will transfer ownership to the new account.",
