@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/adfinis/terraform-provider-bastion/bastion"
+	"github.com/adfinis/bastion-go"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"

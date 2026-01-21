@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/adfinis/terraform-provider-bastion/bastion"
+	"github.com/adfinis/bastion-go"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"

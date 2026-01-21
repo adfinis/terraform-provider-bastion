@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/adfinis/terraform-provider-bastion/bastion"
+	"github.com/adfinis/bastion-go"
 	"github.com/adfinis/terraform-provider-bastion/internal/provider/testutils"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
