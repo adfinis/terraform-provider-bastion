@@ -6,7 +6,7 @@ package testutils
 import (
 	"os"
 
-	"github.com/adfinis/terraform-provider-bastion/bastion"
+	"github.com/adfinis/bastion-go"
 )
 
 var (

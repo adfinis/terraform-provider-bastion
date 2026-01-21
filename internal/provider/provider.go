@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"github.com/adfinis/terraform-provider-bastion/bastion"
+	"github.com/adfinis/bastion-go"
 )
 
 // Ensure BastionProvider satisfies various provider interfaces.

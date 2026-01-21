@@ -6,7 +6,7 @@ package provider
 import (
 	"context"
 
-	"github.com/adfinis/terraform-provider-bastion/bastion"
+	"github.com/adfinis/bastion-go"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"

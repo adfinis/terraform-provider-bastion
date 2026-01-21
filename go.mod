@@ -1,21 +1,20 @@
 module github.com/adfinis/terraform-provider-bastion
 
-go 1.24.0
+go 1.25.6
 
 require (
-	github.com/adrg/xdg v0.5.3
+	github.com/adfinis/bastion-go v0.2.0
 	github.com/hashicorp/terraform-plugin-framework v1.17.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
 	github.com/hashicorp/terraform-plugin-go v0.29.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/hashicorp/terraform-plugin-testing v1.14.0
-	github.com/skeema/knownhosts v1.3.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/crypto v0.47.0
 )
 
 require (
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
+	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/agext/levenshtein v1.2.2 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
@@ -52,10 +51,12 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/skeema/knownhosts v1.3.2 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/zclconf/go-cty v1.17.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
