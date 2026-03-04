@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) Adfinis
+# Copyright Adfinis 2025, 2026
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 
