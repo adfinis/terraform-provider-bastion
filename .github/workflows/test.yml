@@ -69,8 +69,8 @@ jobs:
           - '1.14.*'
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: docker/setup-docker-action@v4
-      - uses: docker/setup-compose-action@v1
+      - uses: docker/setup-docker-action@v5
+      - uses: docker/setup-compose-action@v2
       - uses: actions/setup-go@v6.3.0
         with:
           go-version-file: 'go.mod'
@@ -98,8 +98,8 @@ jobs:
           - '1.11.*'
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: docker/setup-docker-action@v4
-      - uses: docker/setup-compose-action@v1
+      - uses: docker/setup-docker-action@v5
+      - uses: docker/setup-compose-action@v2
       - uses: actions/setup-go@v6.3.0
         with:
           go-version-file: 'go.mod'
