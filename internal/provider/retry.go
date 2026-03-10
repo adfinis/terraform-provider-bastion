@@ -44,7 +44,7 @@ func isRetryableError(err error) bool {
 func retryOnError(op func() error) error {
 	delay := retryBaseDelay
 	var err error
-	for attempt := 0; attempt < retryMaxAttempts; attempt++ {
+	for attempt := range retryMaxAttempts {
 		err = op()
 		if err == nil || !isRetryableError(err) {
 			return err
