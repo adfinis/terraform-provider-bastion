@@ -8,6 +8,10 @@ on:
 
 jobs:
   lock:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       # NOTE: When TSCCR updates the GitHub action version, update the template workflow file to avoid drift:
