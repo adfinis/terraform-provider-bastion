@@ -155,7 +155,9 @@ func (r *GroupACLKeeperResource) Delete(ctx context.Context, req resource.Delete
 		return
 	}
 
-	err := r.client.GroupRemoveACLKeeper(state.Group.ValueString(), state.Account.ValueString())
+	err := retryOnError(func() error {
+		return r.client.GroupRemoveACLKeeper(state.Group.ValueString(), state.Account.ValueString())
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Removing Group ACL Keeper",

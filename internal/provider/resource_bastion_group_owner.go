@@ -155,7 +155,9 @@ func (r *GroupOwnerResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	err := r.client.GroupRemoveOwner(state.Group.ValueString(), state.Account.ValueString())
+	err := retryOnError(func() error {
+		return r.client.GroupRemoveOwner(state.Group.ValueString(), state.Account.ValueString())
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Removing Group Owner",

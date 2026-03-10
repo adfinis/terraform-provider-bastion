@@ -155,7 +155,9 @@ func (r *GroupGatekeeperResource) Delete(ctx context.Context, req resource.Delet
 		return
 	}
 
-	err := r.client.GroupRemoveGatekeeper(state.Group.ValueString(), state.Account.ValueString())
+	err := retryOnError(func() error {
+		return r.client.GroupRemoveGatekeeper(state.Group.ValueString(), state.Account.ValueString())
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Removing Group Gatekeeper",
