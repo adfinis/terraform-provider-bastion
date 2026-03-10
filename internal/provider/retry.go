@@ -23,9 +23,17 @@ const (
 // (e.g. removing many group members or guest accesses simultaneously).
 func isRetryableError(err error) bool {
 	var apiErr *bastion.APIResponse
+	retryableErrors := [...]string{
+		"INTERNAL",
+		"ERR_CHMOD_FAILED",
+	}
 	if errors.As(err, &apiErr) {
 		code := strings.ToUpper(apiErr.ErrorCode)
-		return strings.Contains(code, "INTERNAL")
+		for _, retryable := range retryableErrors {
+			if strings.Contains(code, retryable) {
+				return true
+			}
+		}
 	}
 	return false
 }
