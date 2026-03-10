@@ -155,7 +155,9 @@ func (r *GroupMemberResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	err := r.client.GroupRemoveMember(state.Group.ValueString(), state.Account.ValueString())
+	err := retryOnInternalError(func() error {
+		return r.client.GroupRemoveMember(state.Group.ValueString(), state.Account.ValueString())
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Removing Group Member",

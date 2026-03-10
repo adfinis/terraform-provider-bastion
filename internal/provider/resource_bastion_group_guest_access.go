@@ -374,16 +374,18 @@ func (r *GroupGuestAccessResource) Delete(ctx context.Context, req resource.Dele
 		remotePort = &rp
 	}
 
-	err := r.client.GroupDelGuestAccess(
-		state.Group.ValueString(),
-		state.Account.ValueString(),
-		state.IP.ValueString(),
-		state.Port.ValueString(),
-		state.User.ValueString(),
-		state.Protocol.ValueString(),
-		proxyOpts,
-		remotePort,
-	)
+	err := retryOnInternalError(func() error {
+		return r.client.GroupDelGuestAccess(
+			state.Group.ValueString(),
+			state.Account.ValueString(),
+			state.IP.ValueString(),
+			state.Port.ValueString(),
+			state.User.ValueString(),
+			state.Protocol.ValueString(),
+			proxyOpts,
+			remotePort,
+		)
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Group Guest Access",
