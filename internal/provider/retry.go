@@ -38,10 +38,10 @@ func isRetryableError(err error) bool {
 	return false
 }
 
-// retryOnInternalError runs op, retrying with exponential backoff whenever the
-// operation fails with a retryable Bastion internal error. At most
+// retryOnError runs op, retrying with exponential backoff whenever the
+// operation fails with a retryable Bastion error. At most
 // retryMaxAttempts attempts are made in total.
-func retryOnInternalError(op func() error) error {
+func retryOnError(op func() error) error {
 	delay := retryBaseDelay
 	var err error
 	for attempt := 0; attempt < retryMaxAttempts; attempt++ {

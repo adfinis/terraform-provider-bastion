@@ -155,7 +155,7 @@ func (r *GroupOwnerResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	err := retryOnInternalError(func() error {
+	err := retryOnError(func() error {
 		return r.client.GroupRemoveOwner(state.Group.ValueString(), state.Account.ValueString())
 	})
 	if err != nil {

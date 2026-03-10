@@ -155,7 +155,7 @@ func (r *GroupACLKeeperResource) Delete(ctx context.Context, req resource.Delete
 		return
 	}
 
-	err := retryOnInternalError(func() error {
+	err := retryOnError(func() error {
 		return r.client.GroupRemoveACLKeeper(state.Group.ValueString(), state.Account.ValueString())
 	})
 	if err != nil {
