@@ -104,7 +104,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - uses: opentofu/setup-opentofu@v1.0.8
+      - uses: opentofu/setup-opentofu@v2.0.0
         with:
           tofu_version: ${{ matrix.opentofu }}
           tofu_wrapper: false
