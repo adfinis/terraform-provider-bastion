@@ -38,6 +38,8 @@ type BastionProviderModel struct {
 	PrivateKey            types.String `tfsdk:"private_key"`
 	PrivateKeyFile        types.String `tfsdk:"private_key_file"`
 	PrivateKeyPassphrase  types.String `tfsdk:"private_key_passphrase"`
+	SSHCertificate        types.String `tfsdk:"ssh_certificate"`
+	SSHCertificateFile    types.String `tfsdk:"ssh_certificate_file"`
 	UseAgent              types.Bool   `tfsdk:"use_agent"`
 	Timeout               types.Int64  `tfsdk:"timeout"`
 	StrictHostKeyChecking types.Bool   `tfsdk:"strict_host_key_checking"`
@@ -76,6 +78,15 @@ func (p *BastionProvider) Schema(ctx context.Context, req provider.SchemaRequest
 				MarkdownDescription: "Passphrase for the SSH private key",
 				Optional:            true,
 				Sensitive:           true,
+			},
+			"ssh_certificate": schema.StringAttribute{
+				MarkdownDescription: "SSH certificate content",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"ssh_certificate_file": schema.StringAttribute{
+				MarkdownDescription: "Path to SSH certificate file",
+				Optional:            true,
 			},
 			"use_agent": schema.BoolAttribute{
 				MarkdownDescription: "Use SSH agent for authentication (default: false)",
@@ -138,6 +149,11 @@ func (p *BastionProvider) Configure(ctx context.Context, req provider.ConfigureR
 		data.Username = types.StringValue(username)
 	}
 
+	privateKey := os.Getenv("BASTION_PRIVATE_KEY")
+	if privateKey != "" {
+		data.PrivateKey = types.StringValue(privateKey)
+	}
+
 	keyFile := os.Getenv("BASTION_PRIVATE_KEY_FILE")
 	if keyFile != "" {
 		data.PrivateKeyFile = types.StringValue(keyFile)
@@ -146,6 +162,16 @@ func (p *BastionProvider) Configure(ctx context.Context, req provider.ConfigureR
 	keyPassphrase := os.Getenv("BASTION_PRIVATE_KEY_PASSPHRASE")
 	if keyPassphrase != "" {
 		data.PrivateKeyPassphrase = types.StringValue(keyPassphrase)
+	}
+
+	sshCert := os.Getenv("BASTION_SSH_CERTIFICATE")
+	if sshCert != "" {
+		data.SSHCertificate = types.StringValue(sshCert)
+	}
+
+	sshCertFile := os.Getenv("BASTION_SSH_CERTIFICATE_FILE")
+	if sshCertFile != "" {
+		data.SSHCertificateFile = types.StringValue(sshCertFile)
 	}
 
 	// Validation
@@ -181,30 +207,69 @@ func (p *BastionProvider) Configure(ctx context.Context, req provider.ConfigureR
 		passphrase = data.PrivateKeyPassphrase.ValueString()
 	}
 
+	hasCert := !data.SSHCertificate.IsNull() || !data.SSHCertificateFile.IsNull()
+	certFromFile := !data.SSHCertificateFile.IsNull()
+	certFile := data.SSHCertificateFile.ValueString()
+	certContent := data.SSHCertificate.ValueString()
+
 	if !data.PrivateKey.IsNull() {
-		if passphrase != "" {
+		key := data.PrivateKey.ValueString()
+		switch {
+		case hasCert && certFromFile && passphrase != "":
 			authMethods = append(
 				authMethods,
-				bastion.WithPrivateKeyAuthWithPassphrase(data.PrivateKey.ValueString(), passphrase),
+				bastion.WithPrivateKeyAuthWithPassphraseWithSignedCertFile(key, passphrase, certFile),
 			)
-		} else {
+		case hasCert && certFromFile:
 			authMethods = append(
 				authMethods,
-				bastion.WithPrivateKeyAuth(data.PrivateKey.ValueString()),
+				bastion.WithPrivateKeyAuthWithSignedCertFile(key, certFile),
+			)
+		case hasCert && passphrase != "":
+			authMethods = append(
+				authMethods,
+				bastion.WithPrivateKeyAuthWithPassphraseWithSignedCert(key, passphrase, certContent),
+			)
+		case hasCert:
+			authMethods = append(
+				authMethods,
+				bastion.WithPrivateKeyAuthWithSignedCert(key, certContent),
+			)
+		case passphrase != "":
+			authMethods = append(
+				authMethods,
+				bastion.WithPrivateKeyAuthWithPassphrase(key, passphrase),
+			)
+		default:
+			authMethods = append(
+				authMethods,
+				bastion.WithPrivateKeyAuth(key),
 			)
 		}
 	}
 
 	if !data.PrivateKeyFile.IsNull() {
-		if passphrase != "" {
+		keyFile := data.PrivateKeyFile.ValueString()
+		switch {
+		case hasCert && certFromFile:
 			authMethods = append(
 				authMethods,
-				bastion.WithPrivateKeyFileAuthWithPassphrase(data.PrivateKeyFile.ValueString(), passphrase),
+				bastion.WithPrivateKeyFileAuthWithPassphraseWithSignedCertFile(keyFile, passphrase, certFile),
 			)
-		} else {
+		case hasCert:
 			authMethods = append(
 				authMethods,
-				bastion.WithPrivateKeyFileAuth(data.PrivateKeyFile.ValueString()),
+				bastion.WithPrivateKeyFileAuthWithPassphraseWithSignedCert(keyFile, passphrase, certContent),
+			)
+		case passphrase != "":
+			authMethods = append(
+				authMethods,
+				bastion.WithPrivateKeyFileAuthWithPassphrase(keyFile, passphrase),
+			)
+		default:
+			authMethods = append(
+				authMethods,
+				bastion.WithPrivateKeyFileAuth(keyFile),
 			)
 		}
 	}
