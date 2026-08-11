@@ -4,6 +4,6 @@
 ---
 services:
   bastion:
-    image: ghcr.io/adfinis-forks/the-bastion:sandbox
+    image: ghcr.io/adfinis-forks/the-bastion:sandbox@sha256:0405abab0ca0fa736ceea458f9972a78c8bc174da2b78eac17ec9e1b73fdc6b7
     ports:
       - "2222:22"
