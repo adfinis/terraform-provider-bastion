@@ -15,6 +15,13 @@ docker compose exec -T bastion \
 
 echo "IPv6 enabled!"
 
+# enable proxy jumps
+docker compose exec -T bastion \
+    /usr/bin/sed -i 's/"egressProxyJumpAllowed": false,/"egressProxyJumpAllowed": true,/' \
+    /etc/bastion/bastion.conf
+
+echo "ProxyJump enabled!"
+
 # enable portforwarding support
 docker compose exec -T bastion \
     /usr/bin/sed -i 's/"portForwardingEnabled": false,/"portForwardingEnabled": true,/' \
